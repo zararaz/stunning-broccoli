@@ -24,6 +24,10 @@ First city: Philadelphia (the largest city in the dataset).
 ## Layout
 
 ```
+Makefile         reproducible build: make all YELP=<archive>
+requirements.txt Python packages for the vector database
+scripts/
+  get_data.sh    extracts the needed files from the Yelp download
 src/
   ingest.py      Yelp JSON -> data/yelp.db (businesses, categories, hours, tips, check-ins)
   profiles.py    one searchable text profile per business
@@ -41,46 +45,43 @@ evals/
 
 ## Run it
 
-Needs Python 3.10+. Keyword search needs nothing else; the vector database needs
-the packages in `requirements.txt`.
+Everything is rebuilt from the raw Yelp download by scripts, so anyone can reproduce it.
+Needs Python 3.10+ and `make` (on a Mac: `xcode-select --install`).
 
-0. Set up a virtual environment (once):
+1. Download the Yelp Open Dataset ("Download JSON") from
+   https://business.yelp.com/data/resources/open-dataset/
+2. Build everything, start to finish:
    ```
-   python3 -m venv .venv
-   source .venv/bin/activate
-   pip install -r requirements.txt
+   make all YELP=~/Downloads/Yelp-JSON.zip
    ```
-
-1. Download the Yelp Open Dataset and put these files in `data/`:
-   `yelp_academic_dataset_business.json`, `..._checkin.json`, `..._tip.json`.
-2. Build the database and search index:
-   ```
-   python3 src/ingest.py
-   python3 src/profiles.py
-   python3 src/search.py --build
-   ```
-3. Search:
-   ```
-   python3 src/search.py "quiet cafe with wifi to work" --city Philadelphia
-   python3 src/search.py "late night food" --day Saturday --time 01:00
-   ```
-4. Build and explore the vector database (Philadelphia):
-   ```
-   python3 src/build_vectors.py --city Philadelphia
-   python3 src/inspect_vectors.py info
-   python3 src/inspect_vectors.py similar "Reading Terminal Market"
-   python3 src/inspect_vectors.py compare "cozy cafe" "quiet coffee shop" "sports bar"
-   python3 src/search.py "cozy spot to read" --method vector
-   python3 src/search.py "cozy spot to read" --method hybrid
-   ```
-   The first run downloads the embedding model
+   This creates a virtual environment, installs `requirements.txt`, extracts the
+   Yelp files into `data/`, builds the SQLite database, profiles and keyword index,
+   then builds and inspects the Philadelphia vector database. The first run
+   downloads the embedding model
    ([all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2))
-   from Hugging Face.
-5. Label and evaluate (vector and hybrid join automatically once the vectors exist):
-   ```
-   python3 evals/label.py
-   python3 evals/retrieval_eval.py
-   ```
+   from Hugging Face. `requirements.lock` records the exact package versions used.
+
+Or step by step:
+
+| Command | What it does |
+|---|---|
+| `make setup` | virtual environment + packages |
+| `make data YELP=<archive>` | extract the Yelp JSON files into `data/` |
+| `make db` | SQLite database, business profiles, keyword index |
+| `make vectors CITY=Philadelphia` | vector database for one city |
+| `make inspect` | what's inside the vector database |
+| `make label` | hand-label search results (ground truth) |
+| `make eval` | score popular, keyword, vector and hybrid search |
+
+Steps skip work that is already done. To explore by hand, activate the
+environment with `source .venv/bin/activate`, then for example:
+
+```
+python src/search.py "quiet cafe with wifi to work" --method hybrid
+python src/search.py "late night food" --day Saturday --time 01:00
+python src/inspect_vectors.py similar "Reading Terminal Market"
+python src/inspect_vectors.py compare "cozy cafe" "quiet coffee shop" "sports bar"
+```
 
 ## What the vector database is made of
 
