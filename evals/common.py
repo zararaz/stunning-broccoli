@@ -8,9 +8,13 @@ EVALS = Path(__file__).resolve().parent
 sys.path.insert(0, str(EVALS.parent / "src"))
 
 from db import DAYS, connect  # noqa: E402
+from embedder import has_vectors  # noqa: E402
 from search import parse_time, search  # noqa: E402
 
-METHODS = ["popular", "keyword"]   # add "vector" and "hybrid" in week 3
+
+def methods_for(city):
+    """Vector methods join automatically once src/build_vectors.py has run for the city."""
+    return ["popular", "keyword"] + (["vector", "hybrid"] if has_vectors(city) else [])
 
 
 def load_queries(city):

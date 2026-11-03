@@ -1,15 +1,18 @@
 """Candidate retrieval: structured filters plus keyword search (BM25).
 
-Two methods, so they can be compared in the evals:
+Four methods, so they can be compared in the evals:
   popular - filters only, ranked by a quality score (ratings + review count)
-  keyword - filters, then BM25 text relevance over business profiles,
-            blended with the quality score
+  keyword - BM25 text relevance over business profiles, blended with quality
+  vector  - meaning similarity from the vector database, blended with quality
+            (needs: pip install -r requirements.txt, then src/build_vectors.py)
+  hybrid  - keyword + vector + quality together
 
 Usage:
     python3 src/search.py --build                       # build the keyword index once
     python3 src/search.py "quiet cafe to work" --city Philadelphia
     python3 src/search.py "brunch with outdoor seating" --city Philadelphia --day Sunday --time 11:00
     python3 src/search.py "" --city Philadelphia --category "Museums" --method popular
+    python3 src/search.py "cozy spot to read" --method vector
 """
 
 import argparse
@@ -72,36 +75,62 @@ def search(con, query, city, k=10, method="keyword", day=None, minute=None,
     """Return up to k candidates as dicts, best first."""
     city_mean = con.execute("SELECT AVG(stars) FROM businesses WHERE city=?", (city,)).fetchone()[0] or 3.5
 
+    # 1. Structured filters: the same for every method.
     filters = ["b.city = ?", "b.is_open = 1", "b.review_count >= ?"]
     params = [city, min_reviews]
     if category:
         filters.append("b.business_id IN (SELECT business_id FROM categories WHERE category = ?)")
         params.append(category)
-    where = " AND ".join(filters)
-
-    fts = to_fts_query(query) if method == "keyword" else ""
-    if fts:
-        rows = con.execute(
-            f"SELECT b.*, -bm25(profiles_fts) AS rel FROM profiles_fts f "
-            f"JOIN businesses b ON b.business_id = f.business_id "
-            f"WHERE profiles_fts MATCH ? AND f.city = ? AND {where} "
-            f"ORDER BY bm25(profiles_fts) LIMIT ?", [fts, city] + params + [pool]).fetchall()
-    else:
-        rows = con.execute(f"SELECT b.*, 0.0 AS rel FROM businesses b WHERE {where}", params).fetchall()
-
+    rows = con.execute(f"SELECT b.* FROM businesses b WHERE {' AND '.join(filters)}", params).fetchall()
     if day is not None and minute is not None:
         rows = [r for r in rows if open_at(con, r["business_id"], day, minute)]
 
-    max_rel = max((r["rel"] for r in rows), default=0) or 1.0
+    # 2. Text relevance signals, depending on the method.
+    keyword, vector = {}, {}
+    fts = to_fts_query(query) if method in ("keyword", "hybrid") else ""
+    if fts:
+        keyword = {r[0]: r[1] for r in con.execute(
+            "SELECT business_id, -bm25(profiles_fts) FROM profiles_fts "
+            "WHERE profiles_fts MATCH ? AND city = ? ORDER BY bm25(profiles_fts) LIMIT ?",
+            (fts, city, pool * 4))}
+    if method in ("vector", "hybrid") and query.strip():
+        from embedder import vector_scores
+        vector = vector_scores(city, query)
+
+    if method == "keyword" and keyword:
+        rows = [r for r in rows if r["business_id"] in keyword]
+    if method == "vector" and vector:
+        rows = [r for r in rows if r["business_id"] in vector]
+    if not rows:
+        return []
+
+    # 3. Put each signal on a 0..1 scale across the candidates, then blend.
+    ids = [r["business_id"] for r in rows]
+    kw_max = max((keyword.get(i, 0) for i in ids), default=0) or 1.0
+    v_vals = [vector[i] for i in ids if i in vector]
+    v_min, v_max = (min(v_vals), max(v_vals)) if v_vals else (0.0, 1.0)
+    v_span = (v_max - v_min) or 1.0
+
     results = []
     for r in rows:
+        bid = r["business_id"]
         q = quality(r["stars"], r["review_count"], city_mean)
-        score = TEXT_WEIGHT * (r["rel"] / max_rel) + (1 - TEXT_WEIGHT) * q if fts else q
+        kw = keyword.get(bid, 0) / kw_max
+        vs = (vector[bid] - v_min) / v_span if bid in vector else 0.0
+        if method == "keyword" and keyword:
+            score = TEXT_WEIGHT * kw + (1 - TEXT_WEIGHT) * q
+        elif method == "vector" and vector:
+            score = TEXT_WEIGHT * vs + (1 - TEXT_WEIGHT) * q
+        elif method == "hybrid" and (keyword or vector):
+            score = TEXT_WEIGHT / 2 * kw + TEXT_WEIGHT / 2 * vs + (1 - TEXT_WEIGHT) * q
+        else:
+            score = q
         results.append({
-            "business_id": r["business_id"], "name": r["name"], "address": r["address"],
+            "business_id": bid, "name": r["name"], "address": r["address"],
             "stars": r["stars"], "review_count": r["review_count"], "categories": r["categories"],
             "latitude": r["latitude"], "longitude": r["longitude"],
-            "score": round(score, 4), "text_rel": round(r["rel"] / max_rel, 4), "quality": round(q, 4),
+            "score": round(score, 4), "keyword": round(kw, 4), "vector": round(vs, 4),
+            "quality": round(q, 4),
         })
     results.sort(key=lambda x: x["score"], reverse=True)
     return results[:k]
@@ -111,7 +140,7 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("query", nargs="?", default="")
     ap.add_argument("--city", default="Philadelphia")
-    ap.add_argument("--method", choices=["keyword", "popular"], default="keyword")
+    ap.add_argument("--method", choices=["popular", "keyword", "vector", "hybrid"], default="keyword")
     ap.add_argument("--day", choices=DAYS)
     ap.add_argument("--time", help="HH:MM, 24-hour clock")
     ap.add_argument("--category")

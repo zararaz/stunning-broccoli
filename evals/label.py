@@ -16,7 +16,7 @@ import json
 import random
 import textwrap
 
-from common import METHODS, connect, labels_path, load_labels, load_queries, run
+from common import methods_for, connect, labels_path, load_labels, load_queries, run
 
 POOL_DEPTH = 10
 
@@ -46,7 +46,7 @@ def main():
 
     for qi, q in enumerate(queries, 1):
         pool = {}
-        for m in METHODS:
+        for m in methods_for(args.city):
             for r in run(con, q, args.city, m, POOL_DEPTH):
                 pool.setdefault(r["business_id"], r)
         todo = [r for bid, r in pool.items() if bid not in labels.get(q["id"], {})]

@@ -1,0 +1,4 @@
+# Keyword search and the evals need only the Python standard library.
+# These are for embeddings and the vector database.
+numpy>=1.26
+sentence-transformers>=3.0

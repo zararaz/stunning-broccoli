@@ -16,7 +16,7 @@ import json
 import math
 import time
 
-from common import METHODS, EVALS, connect, labels_path, load_labels, load_queries, run
+from common import methods_for, EVALS, connect, labels_path, load_labels, load_queries, run
 
 K = 10
 
@@ -55,7 +55,7 @@ def main():
     summary = {}
     print(f"{len(queries)} labeled queries, k={K}\n")
     print(f"{'method':10} {'P@10':>6} {'R@10':>6} {'nDCG@10':>8} {'MRR':>6} {'judged':>7} {'ms/query':>9}")
-    for m in METHODS:
+    for m in methods_for(args.city):
         totals, t0 = {}, time.time()
         for q in queries:
             ranked = [r["business_id"] for r in run(con, q, args.city, m, K)]
