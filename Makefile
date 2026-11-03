@@ -11,6 +11,7 @@
 #   make label / make eval      hand-label results / score each search method
 
 CITY ?= Philadelphia
+PYTHON ?= python3        # e.g. make setup PYTHON=python3.12
 YELP ?=
 PY := .venv/bin/python
 
@@ -23,8 +24,10 @@ all: setup data db vectors inspect
 
 setup: .venv/.installed
 .venv/.installed: requirements.txt
-	python3 -c 'import sys; assert sys.version_info >= (3, 10), "Python 3.10+ required"'
-	python3 -m venv .venv
+	@$(PYTHON) -c 'import sys; v = sys.version.split()[0]; ok = sys.version_info >= (3, 10); \
+	  print(("Using Python " + v) if ok else ("Python 3.10+ required, but $(PYTHON) is " + v + \
+	  ". Install a newer Python (see README), then run: make setup PYTHON=python3.12")); sys.exit(0 if ok else 1)'
+	$(PYTHON) -m venv .venv
 	$(PY) -m pip install --upgrade pip -q
 	$(PY) -m pip install -r requirements.txt
 	$(PY) -m pip freeze > requirements.lock

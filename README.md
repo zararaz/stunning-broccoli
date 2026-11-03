@@ -47,6 +47,10 @@ evals/
 
 Everything is rebuilt from the raw Yelp download by scripts, so anyone can reproduce it.
 Needs Python 3.10+ and `make` (on a Mac: `xcode-select --install`).
+The Mac's built-in `python3` is 3.9, so install a newer one first, either with
+[Homebrew](https://brew.sh) (`brew install python@3.12`) or the installer from
+[python.org](https://www.python.org/downloads/macos/). Then pass it to `make`
+once, e.g. `make setup PYTHON=python3.12`; later steps reuse `.venv` automatically.
 
 1. Download the Yelp Open Dataset ("Download JSON") from
    https://business.yelp.com/data/resources/open-dataset/
