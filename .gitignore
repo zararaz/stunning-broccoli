@@ -1,0 +1,7 @@
+# Yelp data and everything built from it stays on this machine
+data/
+*.db
+_to_delete/
+.env
+__pycache__/
+.venv/
