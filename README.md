@@ -36,6 +36,9 @@ src/
   embedder.py    turns text into vectors with a free Hugging Face model
   build_vectors.py  builds the vector database for one city
   inspect_vectors.py  look inside it: info, nearest neighbors, phrase similarity
+  ivf.py         an approximate index (IVF) written from scratch
+bench/
+  scale_bench.py scaling lab: build time, memory, speed and recall per index
   db.py          shared database helpers
 evals/
   queries_philadelphia.jsonl   50 test queries
@@ -76,6 +79,8 @@ Or step by step:
 | `make inspect` | what's inside the vector database |
 | `make label` | hand-label search results (ground truth) |
 | `make eval` | score popular, keyword, vector and hybrid search |
+| `make bench` | scaling lab: exact vs IVF vs FAISS, at growing sizes |
+| `make vectors-all` | vectors for every city, for a bigger scaling lab (`make bench STORE=all`) |
 
 Steps skip work that is already done. To explore by hand, activate the
 environment with `source .venv/bin/activate`, then for example:
@@ -99,5 +104,22 @@ python src/inspect_vectors.py compare "cozy cafe" "quiet coffee shop" "sports ba
 
 Search compares the query's vector with every row (exact cosine similarity).
 That is fast for a city's ~7,500 businesses; approximate indexes are next, for scale.
+
+## Scaling lab
+
+Exact search checks every vector, so its cost grows with the data. Approximate
+indexes check only a promising part:
+
+- **IVF** (inverted file): k-means groups the vectors into clusters; a query
+  searches only the `nprobe` nearest clusters. `src/ivf.py` implements it from
+  scratch in about 60 lines of numpy.
+- **HNSW**: a layered graph of near neighbors that a query walks toward its
+  answer. Used here through FAISS.
+
+`make bench` holds 200 business vectors out as queries, then for growing
+database sizes measures each index's build time, memory, time per query and
+recall@10 (how much of the exact top 10 it finds). Results are saved to
+`bench/results/`. For more vectors, run `make vectors-all` then
+`make bench STORE=all`.
 
 The Yelp data and everything built from it stay local and are excluded by `.gitignore`.

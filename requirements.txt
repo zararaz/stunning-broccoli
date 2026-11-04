@@ -2,3 +2,4 @@
 # These are for embeddings and the vector database.
 numpy>=1.26
 sentence-transformers>=3.0
+faiss-cpu>=1.8         # the scaling lab compares our indexes with FAISS

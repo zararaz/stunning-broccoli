@@ -9,25 +9,29 @@
 #   make vectors CITY=Philadelphia   vector database for one city
 #   make inspect                look inside the vector database
 #   make label / make eval      hand-label results / score each search method
+#   make bench                  scaling lab: exact vs IVF vs FAISS (STORE=philadelphia)
+#   make vectors-all            vectors for every city (~10x more) for a bigger lab
 
 CITY ?= Philadelphia
-PYTHON ?= python3        # e.g. make setup PYTHON=python3.12
+STORE ?= philadelphia
+# Python used to create .venv the first time, e.g. make setup PYTHON=python3.12
+PYTHON ?= python3
 YELP ?=
 PY := .venv/bin/python
 
-.PHONY: all setup data db vectors inspect label eval clean-db help
+.PHONY: all setup data db vectors vectors-all inspect label eval bench clean-db help
 
 help:
-	@sed -n '1,13p' Makefile
+	@sed -n '1,15p' Makefile
 
 all: setup data db vectors inspect
 
 setup: .venv/.installed
 .venv/.installed: requirements.txt
-	@$(PYTHON) -c 'import sys; v = sys.version.split()[0]; ok = sys.version_info >= (3, 10); \
+	@test -x $(PY) || $(PYTHON) -c 'import sys; v = sys.version.split()[0]; ok = sys.version_info >= (3, 10); \
 	  print(("Using Python " + v) if ok else ("Python 3.10+ required, but $(PYTHON) is " + v + \
 	  ". Install a newer Python (see README), then run: make setup PYTHON=python3.12")); sys.exit(0 if ok else 1)'
-	$(PYTHON) -m venv .venv
+	test -x $(PY) || $(PYTHON) -m venv .venv
 	$(PY) -m pip install --upgrade pip -q
 	$(PY) -m pip install -r requirements.txt
 	$(PY) -m pip freeze > requirements.lock
@@ -44,6 +48,12 @@ data/yelp.db: data/yelp_academic_dataset_business.json src/ingest.py src/profile
 
 vectors: setup db
 	$(PY) src/build_vectors.py --city "$(CITY)"
+
+vectors-all: setup db
+	$(PY) src/build_vectors.py --city all
+
+bench: setup
+	$(PY) bench/scale_bench.py --store "$(STORE)"
 
 inspect:
 	$(PY) src/inspect_vectors.py info --city "$(CITY)"

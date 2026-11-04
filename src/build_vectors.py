@@ -6,6 +6,7 @@ matching what search returns.
 
 Usage:
     python3 src/build_vectors.py --city Philadelphia
+    python3 src/build_vectors.py --city all      # every city (~10x more), for the scaling lab
 """
 
 import argparse
@@ -26,11 +27,13 @@ def main():
     from vectordb import VectorStore
 
     con = connect()
+    everywhere = args.city.lower() == "all"
     rows = con.execute(
         "SELECT b.business_id, b.name, b.categories, b.stars, b.review_count, b.latitude, b.longitude, p.text "
         "FROM businesses b JOIN profiles p USING(business_id) "
-        "WHERE b.city = ? AND b.is_open = 1 AND b.review_count >= ? ORDER BY b.business_id",
-        (args.city, args.min_reviews)).fetchall()
+        f"WHERE {'1=1' if everywhere else 'b.city = ?'} AND b.is_open = 1 AND b.review_count >= ? "
+        "ORDER BY b.business_id",
+        ((args.min_reviews,) if everywhere else (args.city, args.min_reviews))).fetchall()
     if not rows:
         raise SystemExit(f"No profiles for {args.city}. Run src/profiles.py first.")
     print(f"{args.city}: {len(rows):,} business profiles to embed with {args.model}")
