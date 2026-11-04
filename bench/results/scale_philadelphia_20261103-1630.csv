@@ -1,0 +1,53 @@
+n,method,params,build_s,mem_MB,ms_per_query,recall@10
+1000,exact,numpy,0.0,1.54,0.013,1.0
+1000,ivf,lists=126 nprobe=1,0.021,1.74,0.012,0.4155
+1000,ivf,lists=126 nprobe=4,0.021,1.74,0.018,0.7585
+1000,ivf,lists=126 nprobe=16,0.021,1.74,0.032,0.966
+1000,ivf,lists=126 nprobe=64,0.021,1.74,0.089,1.0
+1000,faiss-flat,exact,0.005,1.54,0.021,1.0
+1000,faiss-ivf,lists=126 nprobe=1,0.002,1.74,0.005,0.3945
+1000,faiss-ivf,lists=126 nprobe=4,0.002,1.74,0.007,0.7355
+1000,faiss-ivf,lists=126 nprobe=16,0.002,1.74,0.011,0.9515
+1000,faiss-ivf,lists=126 nprobe=64,0.002,1.74,0.023,1.0
+1000,faiss-hnsw,M=32 efSearch=16,0.021,1.81,0.01,0.9685
+1000,faiss-hnsw,M=32 efSearch=64,0.021,1.81,0.025,0.9985
+1000,faiss-hnsw,M=32 efSearch=256,0.021,1.81,0.088,1.0
+2500,exact,numpy,0.0,3.84,0.033,1.0
+2500,ivf,lists=200 nprobe=1,0.053,4.17,0.013,0.4325
+2500,ivf,lists=200 nprobe=4,0.053,4.17,0.021,0.755
+2500,ivf,lists=200 nprobe=16,0.053,4.17,0.044,0.946
+2500,ivf,lists=200 nprobe=64,0.053,4.17,0.14,0.9965
+2500,faiss-flat,exact,0.011,3.84,0.052,1.0
+2500,faiss-ivf,lists=200 nprobe=1,0.007,4.17,0.007,0.4635
+2500,faiss-ivf,lists=200 nprobe=4,0.007,4.17,0.009,0.7715
+2500,faiss-ivf,lists=200 nprobe=16,0.007,4.17,0.015,0.9535
+2500,faiss-ivf,lists=200 nprobe=64,0.007,4.17,0.035,0.9975
+2500,faiss-hnsw,M=32 efSearch=16,0.067,4.52,0.011,0.949
+2500,faiss-hnsw,M=32 efSearch=64,0.067,4.52,0.028,0.993
+2500,faiss-hnsw,M=32 efSearch=256,0.067,4.52,0.101,1.0
+5000,exact,numpy,0.0,7.68,0.062,1.0
+5000,ivf,lists=282 nprobe=1,0.107,8.16,0.014,0.4875
+5000,ivf,lists=282 nprobe=4,0.107,8.16,0.023,0.798
+5000,ivf,lists=282 nprobe=16,0.107,8.16,0.057,0.9545
+5000,ivf,lists=282 nprobe=64,0.107,8.16,0.202,0.997
+5000,faiss-flat,exact,0.021,7.68,0.097,1.0
+5000,faiss-ivf,lists=282 nprobe=1,0.018,8.16,0.008,0.473
+5000,faiss-ivf,lists=282 nprobe=4,0.018,8.16,0.011,0.794
+5000,faiss-ivf,lists=282 nprobe=16,0.018,8.16,0.019,0.956
+5000,faiss-ivf,lists=282 nprobe=64,0.018,8.16,0.046,0.994
+5000,faiss-hnsw,M=32 efSearch=16,0.15,9.04,0.013,0.948
+5000,faiss-hnsw,M=32 efSearch=64,0.15,9.04,0.033,0.9935
+5000,faiss-hnsw,M=32 efSearch=256,0.15,9.04,0.118,1.0
+7310,exact,numpy,0.0,11.23,0.086,1.0
+7310,ivf,lists=341 nprobe=1,0.155,11.81,0.015,0.4915
+7310,ivf,lists=341 nprobe=4,0.155,11.81,0.025,0.789
+7310,ivf,lists=341 nprobe=16,0.155,11.81,0.066,0.94
+7310,ivf,lists=341 nprobe=64,0.155,11.81,0.256,0.992
+7310,faiss-flat,exact,0.031,11.23,0.149,1.0
+7310,faiss-ivf,lists=341 nprobe=1,0.033,11.81,0.01,0.503
+7310,faiss-ivf,lists=341 nprobe=4,0.033,11.81,0.013,0.7775
+7310,faiss-ivf,lists=341 nprobe=16,0.033,11.81,0.022,0.943
+7310,faiss-ivf,lists=341 nprobe=64,0.033,11.81,0.053,0.992
+7310,faiss-hnsw,M=32 efSearch=16,0.227,13.21,0.013,0.933
+7310,faiss-hnsw,M=32 efSearch=64,0.227,13.21,0.034,0.9875
+7310,faiss-hnsw,M=32 efSearch=256,0.227,13.21,0.124,0.999
