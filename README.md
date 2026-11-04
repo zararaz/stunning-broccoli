@@ -18,7 +18,7 @@ First city: Philadelphia (the largest city in the dataset).
 | Filters + keyword search (BM25) | Done |
 | Hand-labeled test queries and retrieval metrics | Tools done, labeling in progress |
 | Vector database (one city), vector + hybrid search | Code done, run it locally |
-| Itinerary planner, validator, LLM write-up | Planned |
+| Chat app: interpret, plan, validate, write (swappable LLM) | Done |
 | Resident mode and personalization eval | Planned |
 
 ## Layout
@@ -37,6 +37,14 @@ src/
   build_vectors.py  builds the vector database for one city
   inspect_vectors.py  look inside it: info, nearest neighbors, phrase similarity
   ivf.py         an approximate index (IVF) written from scratch
+  llm.py         swappable LLM backends: rules (no model), hf (local), claude
+  interpret.py   message -> structured Request (LLM JSON, validated, rules fallback)
+  planner.py     Request -> Plan: itinerary, resident picks, weekly pick; validator
+  writer.py      Plan -> reply; the LLM writes notes only, never place facts
+  history.py     per-user pick history in data/app.db (app state, kept apart from Yelp data)
+  engine.py      the pipeline, with a trace of every step
+  chat_cli.py    chat in the terminal
+app.py           web chat UI (Gradio), Hugging Face Spaces-ready
 bench/
   scale_bench.py scaling lab: build time, memory, speed and recall per index
   db.py          shared database helpers
@@ -104,6 +112,47 @@ python src/inspect_vectors.py compare "cozy cafe" "quiet coffee shop" "sports ba
 
 Search compares the query's vector with every row (exact cosine similarity).
 That is fast for a city's ~7,500 businesses; approximate indexes are next, for scale.
+
+## Chat app
+
+Three kinds of request:
+
+- "I'm visiting Philly on Sunday, I love art" -> a one-day itinerary
+- "I live in Philly, what places should I try?" -> places to eat this week, things to do this month
+- "I live in Philly, tell me a new restaurant every week" -> one new pick each time, never repeated
+
+```mermaid
+flowchart LR
+    M[message] --> I[interpret<br/>LLM or rules]
+    I -->|Request JSON| P[plan<br/>search + rules]
+    P -->|Plan| V[validate<br/>open? near? repeats?]
+    V --> W[write<br/>LLM notes + template]
+    W --> R[reply]
+    H[(app.db<br/>pick history)] <--> P
+    D[(yelp.db + vectors)] --> P
+```
+
+Design choices:
+
+- **The LLM is a swappable part.** `rules` needs no model, `hf` runs a small open
+  Hugging Face model locally, `claude` calls the Claude API. Same pipeline for all three.
+- **The LLM never decides facts.** Search, opening hours, distances and variety are
+  plain code. The model only turns the message into JSON and writes short notes.
+- **Grounded by construction.** The writer gets place ids and returns notes keyed by id;
+  names, addresses and ratings are rendered from the data, so a place can't be invented.
+- **Untrusted output is validated.** Model JSON is checked field by field, with the
+  rule-based parser as a fallback; a separate validator re-checks the finished plan.
+- **Every step is traced**: the parsed request, the plan, the checks and timings.
+
+Run it (inside `.venv`):
+
+```
+python src/chat_cli.py --trace                     # terminal, no model
+python src/chat_cli.py --llm hf                    # small local model from Hugging Face
+python app.py                                      # web UI at http://127.0.0.1:7860
+```
+
+For `--llm claude`, set `ANTHROPIC_API_KEY` first.
 
 ## Scaling lab
 

@@ -3,3 +3,5 @@
 numpy>=1.26
 sentence-transformers>=3.0
 faiss-cpu>=1.8         # the scaling lab compares our indexes with FAISS
+gradio>=5               # web chat UI (app.py)
+anthropic>=0.40         # only for the claude LLM backend

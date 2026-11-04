@@ -63,6 +63,15 @@ def open_at(con, business_id, day, minute):
     return row is not None
 
 
+def open_ids(con, day, minute):
+    """Every business open on `day` at `minute`, in one query (same rules as open_at)."""
+    prev = (day - 1) % 7
+    return {r[0] for r in con.execute(
+        "SELECT DISTINCT business_id FROM hours WHERE "
+        "(day=? AND open_min<=? AND close_min>?) OR (day=? AND close_min>?)",
+        (day, minute, minute, prev, minute + 1440))}
+
+
 def quality(stars, n, city_mean):
     """0..1 score: Bayesian-averaged rating, nudged up by review volume."""
     bayes = (PRIOR_REVIEWS * city_mean + stars * n) / (PRIOR_REVIEWS + n)
@@ -83,7 +92,8 @@ def search(con, query, city, k=10, method="keyword", day=None, minute=None,
         params.append(category)
     rows = con.execute(f"SELECT b.* FROM businesses b WHERE {' AND '.join(filters)}", params).fetchall()
     if day is not None and minute is not None:
-        rows = [r for r in rows if open_at(con, r["business_id"], day, minute)]
+        is_open = open_ids(con, day, minute)
+        rows = [r for r in rows if r["business_id"] in is_open]
 
     # 2. Text relevance signals, depending on the method.
     keyword, vector = {}, {}
