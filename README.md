@@ -147,12 +147,22 @@ Design choices:
 Run it (inside `.venv`):
 
 ```
+pip install -r requirements.txt -c requirements.lock   # gradio + anthropic, same versions as the lock
 python src/chat_cli.py --trace                     # terminal, no model
-python src/chat_cli.py --llm hf                    # small local model from Hugging Face
+python src/chat_cli.py --llm hf --trace            # small local model from Hugging Face
+python src/chat_cli.py --llm claude --trace        # Claude API (needs a key, see below)
 python app.py                                      # web UI at http://127.0.0.1:7860
 ```
 
-For `--llm claude`, set `ANTHROPIC_API_KEY` first.
+- `hf` downloads [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)
+  (~1 GB) on first use and runs it on the Mac's GPU (MPS) or CPU.
+- `claude` needs `ANTHROPIC_API_KEY`. Copy `.env.example` to `.env` (gitignored) and fill
+  it in, or `export` it in your shell; a shell variable wins over `.env`. Without a key the
+  backend refuses to start, rather than silently falling back to rules.
+
+The trace says who did each step: `parsed_by` is `llm:<model>` or
+`rules (llm failed: <error>)`; `written_by` is `llm:<model> (k/n notes)` or
+`template (...)` with the reason, e.g. `llm returned no notes`.
 
 ## Scaling lab
 
