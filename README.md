@@ -1,13 +1,48 @@
-# City Guide (Yelp Open Dataset)
+# City Guide: retrieval-augmented LLM planning over Yelp data
 
-A course project: a city guide that recommends places using retrieval over
-the Yelp Open Dataset, then plans them with an LLM.
+A chat assistant that plans a day in a city, or suggests places to try,
+built on the [Yelp Open Dataset](https://business.yelp.com/data/resources/open-dataset/)
+(Philadelphia first: ~7,500 open businesses). It is a hands-on study of how
+LLM applications are put together: retrieval, embeddings, a vector database
+written from scratch, structured LLM output that's validated rather than
+trusted, evaluation, and serving.
 
-Two use cases:
-- **Resident**: what to visit weekly and monthly in your own city.
-- **Visitor**: a one-day itinerary for a city you're visiting.
+> "I'm visiting Philly on Sunday, I love art and cheap eats"
+> → a six-stop itinerary where every stop is open at its time slot and close to
+> the last one, with every name, address and rating taken from the data, never
+> from the model.
 
-First city: Philadelphia (the largest city in the dataset).
+## What it demonstrates
+
+| Area | What's built | Where |
+|---|---|---|
+| **Hybrid retrieval** | BM25 keyword search (SQLite FTS5) and dense vector search ([all-MiniLM-L6-v2](https://huggingface.co/sentence-transformers/all-MiniLM-L6-v2), 384 dimensions), fused with a Bayesian rating prior, behind hard filters such as "open on Saturday at 1am" | `src/search.py`, `src/embedder.py` |
+| **Vector database from scratch** | plain files (`vectors.npy`, `records.jsonl`, `manifest.json`), exact cosine search in numpy | `src/vectordb.py` |
+| **Approximate nearest neighbors** | an IVF index written from scratch (k-means + `nprobe`), benchmarked against FAISS flat, IVF and HNSW on build time, memory, latency and recall@10 | `src/ivf.py`, `bench/` |
+| **LLM orchestration** | interpret → plan → validate → write. The LLM only turns the message into JSON and writes short notes; search, opening hours, distances and variety are code | `src/engine.py` |
+| **Structured output, untrusted** | model JSON is checked field by field, with a rule-based parser as fallback; a validator re-checks the finished plan | `src/interpret.py`, `src/planner.py` |
+| **Grounding by construction** | the writer gets place ids and returns notes keyed by id, so it can't invent or rename a place (a test proves it) | `src/writer.py`, `tests/` |
+| **Swappable models** | a local open model (Qwen2.5-0.5B on Apple-silicon GPU), the Claude API, or no model at all, through the same pipeline | `src/llm.py` |
+| **Observability** | every step is traced: who parsed and wrote the reply, the plan, the checks, per-step timings | `src/engine.py` |
+| **Retrieval evaluation** | 50 Philadelphia queries, a hand-labeling tool, P@10, R@10, nDCG@10 and MRR for popular, keyword, vector and hybrid search | `evals/` |
+| **Serving** | a 34 MB serving bundle cut from the 807 MB database, an HTTP API, rate limits, logins, JSON logs, tests in CI | `server.py`, `src/service.py` |
+
+### First results: from-scratch IVF vs FAISS
+
+On Philadelphia's 7,310 business vectors (200 held out as queries; full table in
+`bench/results/`):
+
+| Index | Setting | recall@10 | ms per query |
+|---|---|---|---|
+| exact (numpy) | | 1.000 | 0.086 |
+| IVF, from scratch | 341 lists, nprobe=16 | 0.940 | 0.066 |
+| FAISS IVF | 341 lists, nprobe=16 | 0.943 | 0.022 |
+| FAISS HNSW | M=32, efSearch=64 | 0.988 | 0.034 |
+
+The from-scratch IVF matches FAISS's recall at every `nprobe`, which checks
+the implementation. At one city's size exact search is already fast, so the
+next step is a ~900k-vector store of Yelp tips, where approximate indexes
+should clearly pull ahead.
 
 ## Status
 
