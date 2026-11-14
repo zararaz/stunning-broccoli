@@ -57,13 +57,21 @@ def write(plan, req, message, llm, issues):
         return render(plan, req, issues=issues), "template"
     listing = [{"id": s["business_id"], "name": s["name"], "categories": s["categories"],
                 "stars": s["stars"], **({"time": s["time"]} if "time" in s else {})} for s in stops]
-    user = (f"User asked: {message}\nRequest: {json.dumps(req.to_dict())}\n"
-            f"Places (use only these): {json.dumps(listing)}")
+    # A skeleton keyed by the real ids. Small models copy the last JSON they see,
+    # so the prompt shows only the shape we want back (not the parsed Request).
+    skeleton = {"intro": "...", "notes": {s["business_id"]: "..." for s in stops}}
+    user = (f"User asked: {message}\n"
+            f"Places (use only these): {json.dumps(listing, ensure_ascii=False)}\n"
+            f"Fill in this JSON, replacing every \"...\": {json.dumps(skeleton)}")
     try:
         out = extract_json(llm.chat(WRITER_SYSTEM, user, max_tokens=500))
         ids = {s["business_id"] for s in stops}
-        notes = {k: str(v) for k, v in (out.get("notes") or {}).items() if k in ids}   # drop unknown ids
-        intro = str(out["intro"]) if out.get("intro") else None
-        return render(plan, req, intro, notes, issues), f"llm:{llm.name}"
+        notes = {k: str(v) for k, v in (out.get("notes") or {}).items()
+                 if k in ids and str(v).strip() not in ("", "...")}             # drop unknown ids, blanks
+        intro = out.get("intro")
+        intro = str(intro) if intro and str(intro).strip() != "..." else None
     except Exception as e:
         return render(plan, req, issues=issues), f"template (llm failed: {type(e).__name__})"
+    if not notes and intro is None:                                          # valid JSON, nothing usable
+        return render(plan, req, issues=issues), "template (llm returned no notes)"
+    return render(plan, req, intro, notes, issues), f"llm:{llm.name} ({len(notes)}/{len(stops)} notes)"
