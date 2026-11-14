@@ -1,0 +1,8 @@
+# Keep the image small and free of secrets: send Docker only what the Dockerfile copies.
+*
+!requirements-serve.txt
+!bundle/
+!src/
+!app.py
+!server.py
+**/__pycache__

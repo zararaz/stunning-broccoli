@@ -5,13 +5,10 @@ dataset can be rebuilt without losing anyone's history. Set CITY_GUIDE_APP_DB
 to use another file.
 """
 
-import os
 import time
-from pathlib import Path
 
-from db import ROOT, connect
-
-APP_DB = Path(os.environ.get("CITY_GUIDE_APP_DB", ROOT / "data" / "app.db"))
+from db import connect
+from settings import APP_DB
 
 
 def _con():

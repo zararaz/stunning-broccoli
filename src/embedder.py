@@ -5,10 +5,12 @@ Heavy libraries are imported only when needed, so keyword search still runs
 without them.
 """
 
-from db import ROOT
+import threading
+
+from settings import VECTORS_DIR
 
 DEFAULT_MODEL = "sentence-transformers/all-MiniLM-L6-v2"   # 384 dimensions, small and fast
-VECTORS_DIR = ROOT / "data" / "vectors"
+_lock = threading.Lock()   # load each model/store once, even if two requests arrive together
 
 _models = {}
 _stores = {}
@@ -27,6 +29,11 @@ def has_vectors(city):
 
 
 def load_model(name=DEFAULT_MODEL):
+    with _lock:
+        return _load_model(name)
+
+
+def _load_model(name):
     if name not in _models:
         import torch
         from sentence_transformers import SentenceTransformer
@@ -42,10 +49,11 @@ def embed(texts, model_name=DEFAULT_MODEL, batch_size=64, progress=False):
 
 
 def load_store(city):
-    if city not in _stores:
-        from vectordb import VectorStore
-        _stores[city] = VectorStore.load(store_path(city))
-    return _stores[city]
+    with _lock:
+        if city not in _stores:
+            from vectordb import VectorStore
+            _stores[city] = VectorStore.load(store_path(city))
+        return _stores[city]
 
 
 def vector_scores(city, query):

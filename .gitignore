@@ -5,3 +5,5 @@ _to_delete/
 .env
 __pycache__/
 .venv/
+bundle/
+.DS_Store

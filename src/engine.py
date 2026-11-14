@@ -6,9 +6,11 @@
 Every step's output goes into a trace, so you can see exactly what happened.
 """
 
+import threading
 import time
 
 import history
+import settings
 from db import connect
 from interpret import interpret
 from llm import get_llm
@@ -17,12 +19,31 @@ from writer import write
 
 
 class Engine:
-    def __init__(self, llm_name=None, default_city="Philadelphia"):
-        self.con = connect()
+    def __init__(self, llm_name=None, default_city=None, read_only=False):
+        self.read_only = read_only
+        self._local = threading.local()
         self.llm = get_llm(llm_name)
-        self.default_city = default_city
+        self.default_city = default_city or settings.CITY
+        # Cities with enough data to plan for (a serving bundle has just one).
         self.cities = {r[0] for r in self.con.execute(
             "SELECT city FROM businesses GROUP BY city HAVING COUNT(*) >= 300")}
+
+    @property
+    def con(self):
+        """This thread's database connection. SQLite connections can't be shared
+        between threads, and a web server handles requests on several threads."""
+        if not hasattr(self._local, "con"):
+            self._local.con = connect(read_only=self.read_only)
+        return self._local.con
+
+    def warm(self):
+        """Load the vector database and embedding model now, so the first
+        user doesn't wait for them. Returns the search method in use."""
+        method = search_method(self.default_city)
+        if method == "hybrid":
+            from embedder import load_model, load_store
+            load_model(load_store(self.default_city).model)
+        return method
 
     def handle(self, message, user_id="demo"):
         timings, t = {}, time.perf_counter()

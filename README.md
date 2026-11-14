@@ -19,6 +19,7 @@ First city: Philadelphia (the largest city in the dataset).
 | Hand-labeled test queries and retrieval metrics | Tools done, labeling in progress |
 | Vector database (one city), vector + hybrid search | Code done, run it locally |
 | Chat app: interpret, plan, validate, write (swappable LLM) | Done |
+| Production: serving bundle, server, limits, logs, tests, container | Done, see docs/PRODUCTION.md |
 | Resident mode and personalization eval | Planned |
 
 ## Layout
@@ -44,7 +45,15 @@ src/
   history.py     per-user pick history in data/app.db (app state, kept apart from Yelp data)
   engine.py      the pipeline, with a trace of every step
   chat_cli.py    chat in the terminal
-app.py           web chat UI (Gradio), Hugging Face Spaces-ready
+  settings.py    all configuration, from environment variables
+  service.py     serving core: input limits, rate limiting, login check, JSON logs
+  export_bundle.py  cuts yelp.db down to a 34 MB serving bundle for one city
+app.py           web chat UI (Gradio); `python app.py` for development
+server.py        production entry point: /api/chat, /health and the UI (uvicorn server:app)
+Dockerfile       production image: pinned packages, bundle and model baked in
+requirements-serve.txt  what the running app needs, pinned
+tests/           standard-library tests on a fixture city (python -m unittest discover -s tests)
+docs/PRODUCTION.md  how it runs in production, and what's next
 bench/
   scale_bench.py scaling lab: build time, memory, speed and recall per index
   db.py          shared database helpers
@@ -163,6 +172,13 @@ python app.py                                      # web UI at http://127.0.0.1:
 The trace says who did each step: `parsed_by` is `llm:<model>` or
 `rules (llm failed: <error>)`; `written_by` is `llm:<model> (k/n notes)` or
 `template (...)` with the reason, e.g. `llm returned no notes`.
+
+## Production
+
+`server.py` runs the API and the web UI with logins, limits and JSON logs; the
+`Dockerfile` packages it with a 34 MB serving bundle. Tests run on every push.
+See [docs/PRODUCTION.md](docs/PRODUCTION.md) for the architecture, how to run
+it like production on a laptop, hosting options and the runbook.
 
 ## Scaling lab
 

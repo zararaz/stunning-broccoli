@@ -10,6 +10,7 @@ the output as untrusted: parse it, validate it, and fall back if it's wrong.
 """
 
 import os
+import threading
 from pathlib import Path
 
 ENV_FILE = Path(__file__).resolve().parent.parent / ".env"   # gitignored; see .env.example
@@ -40,8 +41,13 @@ class HuggingFaceLLM:
         self.device = "mps" if torch.backends.mps.is_available() else "cpu"
         self.tokenizer = AutoTokenizer.from_pretrained(self.name)
         self.model = AutoModelForCausalLM.from_pretrained(self.name).to(self.device)
+        self.lock = threading.Lock()   # one generation at a time: the model isn't thread-safe
 
     def chat(self, system, user, max_tokens=500):
+        with self.lock:
+            return self._chat(system, user, max_tokens)
+
+    def _chat(self, system, user, max_tokens):
         messages = [{"role": "system", "content": system}, {"role": "user", "content": user}]
         enc = self.tokenizer.apply_chat_template(messages, add_generation_prompt=True,
                                                  return_tensors="pt", return_dict=True).to(self.device)
