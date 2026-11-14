@@ -1,17 +1,23 @@
 """Web chat UI (Gradio).
 
-    python app.py              development: pick any LLM backend and user id
-    uvicorn server:app ...     production: fixed backend, login, logs (see server.py)
+    python app.py                  on your laptop, http://127.0.0.1:7860
+    python app.py --llm hf         with a local Hugging Face model (or --llm claude)
+    uvicorn server:app ...         production: the same page plus the HTTP API (see server.py)
 
-build_demo() only draws the page; whoever calls it decides what happens to a message.
+Every message goes  page -> ChatService.chat -> Engine.handle,  the same path
+the HTTP API uses, so limits, logins and logging behave the same everywhere.
 """
 
+import argparse
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent / "src"))
 
 import gradio as gr  # noqa: E402
+
+import settings  # noqa: E402
+from service import ChatError, ChatService, basic_auth_user, client_key  # noqa: E402
 
 EXAMPLES = [
     "I'm visiting Philly on Saturday, I love art and cheap eats",
@@ -20,54 +26,45 @@ EXAMPLES = [
 ]
 
 
-def make_chatbot():
-    try:
-        return gr.Chatbot(type="messages", height=520, label="City guide")
-    except TypeError:                        # newer Gradio: messages format is the only format
-        return gr.Chatbot(height=520, label="City guide")
+def build_demo(service, full_trace=True):
+    """The chat page. full_trace shows every pipeline step in the side panel;
+    without it the panel shows only the request id, mode and timings."""
 
-
-def build_demo(handle, backends=("rules", "hf", "claude"), show_user=True):
-    """handle(message, user_id, backend, request) -> (reply, trace)."""
-
-    def respond(message, chat, user_id, backend, request: gr.Request):
+    def respond(message, chat, user_id, request: gr.Request):
         if not message.strip():
             return "", chat, {}
+        login = basic_auth_user(request.headers.get("authorization")) if request else None
+        user = login or user_id or "demo"
         try:
-            reply, trace = handle(message, user_id or "demo", backend, request)
-        except Exception as e:
-            reply, trace = f"Sorry, something went wrong: {e}", {"error": repr(e)}
+            out, trace = service.chat(message, user, client_key(login, request.client.host if request else None))
+            reply = out["reply"]
+            if not full_trace:
+                trace = {"request_id": out["request_id"], "mode": trace["request"]["mode"],
+                         "search": trace["search_method"], "timings": trace["timings"]}
+        except ChatError as e:
+            reply, trace = e.message, {"error": e.message}
         chat = chat + [{"role": "user", "content": message}, {"role": "assistant", "content": reply}]
         return "", chat, trace
 
+    info = service.info()
     with gr.Blocks(title="City guide") as demo:
         gr.Markdown("# City guide\nVisiting, living there, or want a new restaurant every week? Ask away.")
         with gr.Row():
             with gr.Column(scale=3):
-                chat = make_chatbot()
+                chat = gr.Chatbot(height=520, label="City guide")
                 box = gr.Textbox(placeholder="e.g. I'm visiting Philly on Sunday, love jazz", label="Message")
                 gr.Examples(EXAMPLES, inputs=box)
             with gr.Column(scale=2):
                 user = gr.Textbox(value="demo", label="User id (weekly picks are remembered per user)",
-                                  visible=show_user)
-                backend = gr.Radio(list(backends), value=backends[0], label="LLM backend",
-                                   visible=len(backends) > 1)
+                                  visible=not settings.USERS)       # with logins, the login is the user
+                gr.Markdown(f"LLM backend: **{info['llm']}** · search: **{info['search']}**")
                 trace = gr.JSON(label="Trace: what each step did")
-        box.submit(respond, [box, chat, user, backend], [box, chat, trace])
+        box.submit(respond, [box, chat, user], [box, chat, trace])
     return demo
 
 
-def dev_main():
-    from engine import Engine
-    engines = {}
-
-    def handle(message, user_id, backend, request):
-        if backend not in engines:
-            engines[backend] = Engine(backend)
-        return engines[backend].handle(message, user_id)
-
-    build_demo(handle).launch()
-
-
 if __name__ == "__main__":
-    dev_main()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--llm", help="rules (default), hf or claude")
+    args = ap.parse_args()
+    build_demo(ChatService(args.llm)).launch()

@@ -71,6 +71,13 @@ def basic_auth_user(header):
     return user if expected is not None and secrets.compare_digest(password, expected) else None
 
 
+def client_key(login=None, ip=None):
+    """Who to rate-limit: the logged-in user, else the IP address."""
+    if login:
+        return f"user:{login}"
+    return f"ip:{ip}" if ip else "unknown"
+
+
 class ChatError(Exception):
     def __init__(self, status, message):
         super().__init__(message)
@@ -78,8 +85,9 @@ class ChatError(Exception):
 
 
 class ChatService:
-    def __init__(self, engine=None):
-        self.engine = engine or Engine(settings.LLM, read_only=True)
+    def __init__(self, llm_name=None, engine=None):
+        """llm_name overrides CITY_GUIDE_LLM; engine is for tests."""
+        self.engine = engine or Engine(llm_name or settings.LLM, read_only=True)
         self.limiter = RateLimiter(settings.RATE_LIMIT_PER_MINUTE)
         self.search_method = self.engine.warm()
         self.started = time.time()

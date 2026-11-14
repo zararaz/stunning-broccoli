@@ -9,7 +9,7 @@ rendered from the template alone.
 
 import json
 
-from interpret import extract_json
+from llm import extract_json
 from planner import plan_stops
 
 WRITER_SYSTEM = """You write short, friendly notes for a city-guide chatbot. Reply with JSON only:

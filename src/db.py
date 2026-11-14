@@ -3,7 +3,7 @@
 import sqlite3
 from pathlib import Path
 
-from settings import DB_PATH, ROOT  # noqa: F401  (ROOT re-exported for older imports)
+from settings import DB_PATH
 
 DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 

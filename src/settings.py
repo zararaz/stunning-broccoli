@@ -1,22 +1,37 @@
 """All configuration in one place, read from environment variables.
 
+Every other file reads its settings from here; none reads os.environ itself.
+(Exception: the Anthropic SDK reads ANTHROPIC_API_KEY on its own.)
+
 Same code everywhere; only the environment changes:
   laptop     defaults below (data/ folder, rules backend, no login)
   container  the Dockerfile sets paths to the serving bundle
   hosting    secrets (API key, logins) come from the host's secret settings
 
 A .env file (gitignored, see .env.example) is read first; variables already
-set in the shell or by the host win.
+set in the shell or by the host win. Standard library only.
 """
 
 import os
 from pathlib import Path
 
-from llm import load_env_file
+ROOT = Path(__file__).resolve().parent.parent
+
+
+def load_env_file(path=ROOT / ".env"):
+    """Read KEY=value lines from .env into os.environ, without overriding
+    variables that are already set."""
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, value = line.removeprefix("export ").split("=", 1)
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+
 
 load_env_file()
-
-ROOT = Path(__file__).resolve().parent.parent
 
 
 def _path(name, default):
@@ -27,13 +42,17 @@ def _int(name, default):
     return int(os.environ.get(name, default))
 
 
-DATA_DIR = _path("CITY_GUIDE_DATA", ROOT / "data")
+# Data
+DATA_DIR = _path("CITY_GUIDE_DATA", ROOT / "data")                  # Yelp JSON files and everything built from them
 DB_PATH = _path("CITY_GUIDE_DB", DATA_DIR / "yelp.db")              # Yelp data (read-only when serving)
 VECTORS_DIR = _path("CITY_GUIDE_VECTORS", DATA_DIR / "vectors")     # vector databases, one folder per city
 APP_DB = _path("CITY_GUIDE_APP_DB", DATA_DIR / "app.db")            # app state: users' pick history
-
 CITY = os.environ.get("CITY_GUIDE_CITY", "Philadelphia")
+
+# LLM backend: rules (no model), hf (local Hugging Face model) or claude (Claude API)
 LLM = os.environ.get("CITY_GUIDE_LLM", "rules")
+HF_MODEL = os.environ.get("CITY_GUIDE_HF_MODEL", "Qwen/Qwen2.5-0.5B-Instruct")   # ~1 GB, fits a laptop
+CLAUDE_MODEL = os.environ.get("CITY_GUIDE_CLAUDE_MODEL", "claude-haiku-5-5")
 
 # Serving limits
 MAX_MESSAGE_CHARS = _int("CITY_GUIDE_MAX_MESSAGE_CHARS", 500)

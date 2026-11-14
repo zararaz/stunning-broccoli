@@ -5,12 +5,12 @@ by field; anything missing or invalid is filled in by the rule-based parser,
 and if the LLM fails outright the rules handle the whole message.
 """
 
-import json
 import re
 from dataclasses import asdict, dataclass, field
 from datetime import date, timedelta
 
 from db import DAYS
+from llm import extract_json
 
 MODES = ("visit", "explore", "weekly")
 ALIASES = {"philly": "Philadelphia", "nola": "New Orleans", "st. louis": "Saint Louis",
@@ -103,13 +103,6 @@ Fields:
   "budget": "low", "high" or null
 Example: "visiting philly on sunday, love art and cheap eats" ->
 {{"mode": "visit", "city": "Philadelphia", "day": "Sunday", "food": ["cheap eats"], "activities": ["art"], "budget": "low"}}"""
-
-
-def extract_json(text):
-    m = re.search(r"\{.*\}", text, re.DOTALL)
-    if not m:
-        raise ValueError("no JSON object in the model's reply")
-    return json.loads(m.group(0))
 
 
 def merge(raw, fallback, known_cities):

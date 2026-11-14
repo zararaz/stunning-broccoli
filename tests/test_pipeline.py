@@ -182,7 +182,7 @@ class TestService(Base):
             service.settings.USERS = {}
 
     def test_service_rejects_bad_input_and_answers_good_input(self):
-        svc = service.ChatService(self.engine)
+        svc = service.ChatService(engine=self.engine)
         for message, status in [("", 400), ("x" * (service.settings.MAX_MESSAGE_CHARS + 1), 413)]:
             with self.assertRaises(service.ChatError) as ctx:
                 svc.chat(message, "u")

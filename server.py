@@ -23,7 +23,7 @@ from pydantic import BaseModel  # noqa: E402
 
 import settings  # noqa: E402
 from app import build_demo  # noqa: E402
-from service import ChatError, ChatService, basic_auth_user, log_event, setup_logging  # noqa: E402
+from service import ChatError, ChatService, basic_auth_user, client_key, log_event, setup_logging  # noqa: E402
 
 setup_logging()
 service = ChatService()                      # loads data, vectors and models once, at startup
@@ -54,34 +54,16 @@ class ChatIn(BaseModel):
     user_id: str = "anonymous"
 
 
-def client_key(request, user):
-    """Rate-limit by logged-in user, else by IP address."""
-    if user:
-        return f"user:{user}"
-    return f"ip:{request.client.host}" if request and request.client else "unknown"
-
-
 @api.post("/api/chat")
 def chat(body: ChatIn, request: Request):
-    user = basic_auth_user(request.headers.get("authorization"))
+    login = basic_auth_user(request.headers.get("authorization"))
+    ip = request.client.host if request.client else None
     try:
-        out, _ = service.chat(body.message, user or body.user_id, client_key(request, user))
+        out, _ = service.chat(body.message, login or body.user_id, client_key(login, ip))
         return out
     except ChatError as e:
         return JSONResponse({"error": e.message}, status_code=e.status)
 
 
-def ui_handle(message, user_id, backend, request):
-    user = basic_auth_user(request.headers.get("authorization")) if request else None
-    try:
-        out, trace = service.chat(message, user or user_id, client_key(request, user))
-    except ChatError as e:
-        return e.message, {"error": e.message}
-    if settings.DEBUG_TRACE:
-        return out["reply"], trace
-    return out["reply"], {"request_id": out["request_id"], "mode": trace["request"]["mode"],
-                          "search": trace["search_method"], "timings": trace["timings"]}
-
-
-demo = build_demo(ui_handle, backends=(service.info()["llm"],), show_user=not settings.USERS)
-app = gr.mount_gradio_app(api, demo, path="/")
+# The web UI at /: the same page as `python app.py`, sharing this process's service.
+app = gr.mount_gradio_app(api, build_demo(service, full_trace=settings.DEBUG_TRACE), path="/")

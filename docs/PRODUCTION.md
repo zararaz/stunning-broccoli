@@ -53,7 +53,8 @@ database for users' history.
 | The first user waited for the model and vectors to load | load them at startup | `Engine.warm()` |
 | No limits: huge messages, unlimited requests | 500-character limit, 20 messages a minute per user or IP | `service.py` |
 | Anyone could type any user id and read their history | optional login; the login name becomes the user id | `server.py`, `service.basic_auth_user` |
-| Visitors could switch to the paid Claude backend | the backend is fixed by configuration in production | `server.py` |
+| Visitors could switch to the paid Claude backend | the backend is set once at startup (`CITY_GUIDE_LLM`, or `--llm` for `app.py`); the page has no picker | `settings.py`, `app.py` |
+| The dev page and the production page took different code paths | both are `app.build_demo(service)`: page -> `ChatService.chat` -> `Engine.handle` | `app.py`, `server.py` |
 | `print` output only | one JSON log line per request: mode, timings, who parsed and wrote it; message length, never message text | `service.log_event` |
 | No way for the host to check the app | `GET /health` checks the data is readable and reports what's served | `server.py` |
 | No programmatic access | `POST /api/chat`, documented at `/api/docs` | `server.py` |
@@ -115,11 +116,14 @@ login on until you have decided who should be able to use it.
 
 | Variable | Default | Meaning |
 |---|---|---|
+| `CITY_GUIDE_DATA` | `data` | folder for the Yelp files and everything built from them |
 | `CITY_GUIDE_DB` | `data/yelp.db` | Yelp data (the bundle's `serve.db` in production) |
 | `CITY_GUIDE_VECTORS` | `data/vectors` | vector databases |
 | `CITY_GUIDE_APP_DB` | `data/app.db` | users' pick history (must be on persistent storage) |
 | `CITY_GUIDE_CITY` | `Philadelphia` | default city |
 | `CITY_GUIDE_LLM` | `rules` | `rules`, `hf` or `claude` |
+| `CITY_GUIDE_HF_MODEL` | `Qwen/Qwen2.5-0.5B-Instruct` | model for `hf` |
+| `CITY_GUIDE_CLAUDE_MODEL` | `claude-haiku-5-5` | model for `claude` |
 | `ANTHROPIC_API_KEY` | | only for `claude`; set as a host secret |
 | `CITY_GUIDE_USERS` | empty (no login) | `name:password,name2:password2` |
 | `CITY_GUIDE_MAX_MESSAGE_CHARS` | `500` | longest accepted message |
