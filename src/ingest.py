@@ -16,11 +16,10 @@ import json
 import sqlite3
 import time
 from datetime import date
-from pathlib import Path
+import settings
 
-ROOT = Path(__file__).resolve().parent.parent
-DATA = ROOT / "data"
-DB = DATA / "yelp.db"
+DATA = settings.DATA_DIR
+DB = settings.DB_PATH
 FILES = {
     "business": DATA / "yelp_academic_dataset_business.json",
     "checkin": DATA / "yelp_academic_dataset_checkin.json",
