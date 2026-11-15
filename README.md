@@ -46,6 +46,8 @@ should clearly pull ahead.
 
 ## Status
 
+Goals, milestones, decisions, risks and next steps: [docs/ROADMAP.md](docs/ROADMAP.md).
+
 | Step | State |
 |---|---|
 | Load Yelp data into SQLite | Done |
@@ -109,6 +111,7 @@ evals/              50 test queries, hand-labeling tool, retrieval metrics
 bench/              scaling lab: exact search vs IVF vs FAISS
 scripts/get_data.sh extracts the needed files from the Yelp download
 docs/PRODUCTION.md  how it runs as a service, and what's left to do
+docs/ROADMAP.md     goals, milestones, decisions and trade-offs, risks, next steps
 Dockerfile, requirements-serve.txt   the production image (not built yet)
 requirements.txt, requirements.lock  packages, and their exact versions
 Makefile            the same build steps as below, for people who prefer make

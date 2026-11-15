@@ -7,7 +7,7 @@ people can use", what was changed to get there, and what is still to do.
 
 | Need | On a laptop | In production |
 |---|---|---|
-| Data | 785 MB `yelp.db`, rebuilt by hand | a 34 MB serving bundle with hashes, versioned with the code |
+| Data | 807 MB `yelp.db`, rebuilt by hand | a 34 MB serving bundle with hashes, versioned with the code |
 | Many users at once | one person, one thread | several requests at a time, on several threads |
 | Configuration | edit code, `.env` | environment variables set by the host; secrets never in git |
 | Identity | type any user id | a login decides who you are |
@@ -20,7 +20,7 @@ people can use", what was changed to get there, and what is still to do.
 ```mermaid
 flowchart LR
     subgraph offline["Offline build (your Mac)"]
-        Y[Yelp JSON] --> ING[ingest.py] --> DB[(yelp.db 785 MB)]
+        Y[Yelp JSON] --> ING[ingest.py] --> DB[(yelp.db 807 MB)]
         DB --> PRO[profiles.py] --> VEC[build_vectors.py]
         DB --> EXP[export_bundle.py]
         VEC --> EXP
@@ -49,7 +49,7 @@ database for users' history.
 |---|---|---|
 | One SQLite connection was shared, but a web server answers on several threads, and SQLite refuses to share a connection across threads | one connection per thread, read-only for the Yelp data | `engine.py` (`Engine.con`), `db.py` |
 | Settings were scattered and hard-coded | one module reads every setting from environment variables | `settings.py` |
-| 785 MB of data, most of it unused when serving | a bundle with only one city's open businesses, plus SHA-256 hashes | `export_bundle.py` |
+| 807 MB of data, most of it unused when serving | a bundle with only one city's open businesses, plus SHA-256 hashes | `export_bundle.py` |
 | The first user waited for the model and vectors to load | load them at startup | `Engine.warm()` |
 | No limits: huge messages, unlimited requests | 500-character limit, 20 messages a minute per user or IP | `service.py` |
 | Anyone could type any user id and read their history | optional login; the login name becomes the user id | `server.py`, `service.basic_auth_user` |

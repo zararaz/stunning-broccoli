@@ -1,7 +1,7 @@
 """Cut the full database down to a small serving bundle for one city.
 
 The build pipeline (ingest, profiles, vectors) runs offline on the full
-785 MB database. The running app needs far less: one city's open businesses,
+807 MB database. The running app needs far less: one city's open businesses,
 their categories, hours and profiles, the keyword index and the vectors.
 This script copies exactly that into a self-contained folder:
 
